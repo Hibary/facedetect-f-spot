@@ -19,7 +19,9 @@
 static CvMemStorage* storage = 0;
 static CvHaarClassifierCascade* cascade = 0;
 
-void detect_and_draw( IplImage* image, FImageView *image_view );
+GdkRegion * detect_and_draw( IplImage* image, FImageView *image_view );
+
+
 const char* cascade_name =
     "haarcascade_frontalface_alt.xml";
 /*    "haarcascade_profileface.xml";*/
@@ -45,7 +47,7 @@ int f_detect (char *cascadeName,
 	}
     else
     {
-        cascade_name = "../../data/haarcascades/haarcascade_frontalface_alt2.xml";
+        cascade_name = "/usr/share/opencv/haarcascades/haarcascade_frontalface_default.xml";
         input_name = fileName;
     }
 
@@ -63,22 +65,38 @@ int f_detect (char *cascadeName,
     cvNamedWindow( "result", 1 );
 
         const char* filename = input_name ? input_name : (char*)"lena.jpg";
-        IplImage* image = cvLoadImage( filename, 1 );
+        //IplImage* image = cvLoadImage( filename, 1 );
+		GdkPixbuf *pixbuf = image_view_get_pixbuf (IMAGE_VIEW(image_view));
+	int width = gdk_pixbuf_get_width (pixbuf);
+	int height = gdk_pixbuf_get_height (pixbuf);
+	cairo_surface_t *surface = f_pixbuf_to_cairo_surface (pixbuf);
 
+        IplImage* image = cvCreateImage( cvSize (width, height), 8, 4);
         if( image )
         {
-            detect_and_draw( image, image_view );
-            cvWaitKey(0);
-            cvReleaseImage( &image );
+		guchar *src = f_image_surface_get_data (surface);
+		guchar *dest = image->imageData;
+		
+		int i;
+		for (i = 0; i < height; i++) {
+			memcpy (dest, src, width * 4);
+			dest += image->widthStep;
+			src += 4* width;
+		}
+		
+		detect_and_draw( image, image_view );
+		cvWaitKey(0);
+		cvReleaseImage( &image );
         }
 
-    
+	cairo_surface_destroy (surface);
  //   cvDestroyWindow("result");
 
     return 0;
 }
 
-void detect_and_draw( IplImage* img, FImageView *image_view)
+GdkRegion *
+detect_and_draw( IplImage* img, FImageView *image_view)
 {
 	GdkRectangle zone, zone1;
 	cairo_t *ctx;
@@ -98,11 +116,11 @@ void detect_and_draw( IplImage* img, FImageView *image_view)
         {{255,0,255}}
     };
 
-    double scale = 1.3;
+    double scale = 2;
     IplImage* gray = cvCreateImage( cvSize(img->width,img->height), 8, 1 );
     IplImage* small_img = cvCreateImage( cvSize( cvRound (img->width/scale),
-                         cvRound (img->height/scale)),
-                     8, 1 );
+						 cvRound (img->height/scale)),
+					 8, 1 );
     int i;
 
     cvCvtColor( img, gray, CV_BGR2GRAY );
@@ -118,17 +136,27 @@ void detect_and_draw( IplImage* img, FImageView *image_view)
                                             cvSize(30, 30) );
         t = (double)cvGetTickCount() - t;
         printf( "detection time = %gms\n", t/((double)cvGetTickFrequency()*1000.) );
+
+	
         for( i = 0; i < (faces ? faces->total : 0); i++ )
         {
             CvRect* r = (CvRect*)cvGetSeqElem( faces, i );
-//	   printf("%d\n%d\n",i,faces->total);
-//	   printf("%d\n%d\n",r->x,r->y);
-//	   printf("%d\n%d\n",r->width,r->height);
-	image_coords_to_window(image_view, r->x, r->y, &zone.x, &zone.y);
-	printf("rysuje rect o wspolrz %d %d \n",zone.x, zone.y);
-	zone.width = r->width;
-	zone.height = r->height;
-	gdk_region_union_with_rect (other, &zone);
+	    int x1, x2, y1, y2;
+	    x1 = r->x * scale;
+	    x2 = x1 + r->width * scale;
+	    y1 = r->y * scale;
+	    y2 = y1 + r->height * scale;
+
+	    image_coords_to_window(image_view, x1, y1, &x1, &y1);
+	    image_coords_to_window(image_view, x2, y2, &x2, &y2);
+	    zone.x = x1;
+	    zone.y = y1;
+	    zone.width = x2 - x1;
+	    zone.height = y2 - y1;
+
+	    printf("rect (%d %d %d %d) zone (%d %d %d %d) \n", r->x, r->y, r->width, r->height, zone.x, zone.y, zone.width, zone.height);
+
+	    gdk_region_union_with_rect (other, &zone);
 
             CvPoint center;
             int radius;
@@ -145,8 +173,10 @@ void detect_and_draw( IplImage* img, FImageView *image_view)
 	gdk_cairo_region (ctx, other);
 	cairo_fill (ctx);
 	cairo_destroy (ctx);
-	gdk_region_destroy (other);
+    gdk_region_destroy (other);
 
     cvReleaseImage( &gray );
     cvReleaseImage( &small_img );
+    
+    return other;
 }
