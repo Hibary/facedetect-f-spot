@@ -1,3 +1,14 @@
+2007-07-05  Larry Ewing  <lewing@novell.com>
+
+	* configure.in: temporarily add opencv to F checks.
+
+	* libfspot/Makefile.am: link F_LIBS and add f-facedetect.c to the
+	build.
+	
+	* Libfspot/f-facedetect.c (f_detect): use the in memory pixbuf
+	don't try to load the file directly.  Compute the dection bounds
+	properly.
+
 2007-07-05  Stephane Delcroix  <stephane@delcroix.org>
 
 	* src/Editors/SoftFocus.cs: make the buttons translatable.

@@ -1,4 +1,4 @@
-INCLUDES =							\
+ INCLUDES =							\
 	-I $(top_srcdir)					\
 	-DLIBEOG_ETTORE_CHANGES=1				\
         -DG_LOG_DOMAIN=\"libf\"					\
@@ -13,6 +13,7 @@ fspotlibdir = $(libdir)/f-spot
 fspotlib_LTLIBRARIES = libfspot.la
 
 libfspot_la_SOURCES =				\
+	f-facedetect.c				\
 	f-image-surface.c			\
 	f-image-surface.h			\
 	f-image-view.c				\
@@ -30,6 +31,7 @@ libfspot_la_SOURCES =				\
 	f-utils.h
 
 libfspot_la_LIBADD = 					\
+	$(F_LIBS)					\
 	$(LCMS_LIBS)					\
 	$(EXIF_LIBS)					\
 	$(top_builddir)/libjpegtran/libfspotjpegtran.la	\
