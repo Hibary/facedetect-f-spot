@@ -1,3 +1,11 @@
+2007-07-06  Larry Ewing  <lewing@novell.com>
+
+	* src/ImageView.cs: capture and free the return value.
+	
+	* libfspot/f-facedetect.c: Use raw rectangles rather than regions
+	because the region code slices up the rectangles.  Return the list
+	of rectangles.
+
 2007-07-05  Larry Ewing  <lewing@novell.com>
 
 	* configure.in: temporarily add opencv to F checks.
