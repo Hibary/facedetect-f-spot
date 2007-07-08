@@ -17,16 +17,15 @@ clear all
 load('features.mat');
 
 Itest=imread('PIC00.jpg');
-Itest=imresize(Itest, [240, 320]);
-imshow(Itest);
 
 Itest=rgb2gray(Itest);
 Itest = histeq(Itest); % this is really needed for high contrast images
+Itest=imresize(Itest, [240, 320]);
 
 Itest=double(Itest);
 
 Itest= normImageF(Itest); % this is a very important step as well
-%figure,imshow(Itest,[])
+figure,imshow(Itest,[])
 
         
 
@@ -76,7 +75,6 @@ overlappingRects=0;
 [cnt cnt] = size(rects);
 for i=1:4:cnt
     overlaps = 0;
-    hasChild = 0;
     for j=1:4:cnt
         if i==j continue;
         end
@@ -85,7 +83,7 @@ for i=1:4:cnt
             overlaps = overlaps+1;
             sprintf('kwadraty %d i %d pokrywaja sie!', (i-1)/4, (j-1)/4)
             break;
-        elseif (is_inner(rects(j:(j+3)), rects(i:(i+3))))
+        elseif(is_inner(rects(j:(j+3)), rects(i:(i+3))))
             overlappingRects = overlappingRects +1;
             overlaps = overlaps+1;
             sprintf('%d jest w srodku %d!', (j-1)/4, (i-1)/4)
@@ -94,6 +92,7 @@ for i=1:4:cnt
     end
     if(overlaps==0)
                 rectangle('Position', rects(i:(i+3)), 'edgecolor','red');
+            elseif(overlaps
     end
 end
 overlappingRects

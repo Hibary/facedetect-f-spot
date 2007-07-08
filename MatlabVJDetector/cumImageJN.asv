@@ -11,10 +11,7 @@ function I= cumImageJN(src)
 %preI= cumsum(cumsum(preI,1),2) ;
 %I = preI;
 %I= reshape(preI,1,numPix);
-
-% modified for compliance with the Torch library
-% as in ipIntegralImage.cc
-% 
+% modified
             dst = zeros(height, width);
 		    dst(1,1) = src(1,1);
 			
