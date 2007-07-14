@@ -1,5 +1,18 @@
+#include "f-image-view.h"
+
+#include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <assert.h>
 #include <math.h>
+#include <float.h>
+#include <limits.h>
+#include <time.h>
+#include <ctype.h>
+
+#include "cls.h"
+
+
 #define MAX_CLS_IN_STAGE 30
 
 int *labels;
@@ -16,20 +29,6 @@ int t;
 int T;
 int i;
 
-typedef struct {
-	double theta;
-	double alpha;
-	double error;
-	int parity;
-} WeakClassifier;
-
-typedef struct {
-	
-	double theta;
-	int cls_count;
-	WeakClassifier *cls;
-	
-} StrongClassifier;
 
 int sum (int *tbl, int len) {
 	
@@ -38,6 +37,34 @@ int sum (int *tbl, int len) {
 	for(i=0; i<len; i++)
 		sum+=tbl[i];
 	return sum;
+}
+/// MakeVector img is a matrix of w * h
+void MakeVector(int **img, int *vec, int w, int h)
+{
+	int i,j;
+	
+//	vec = malloc(w*h*sizeof(int));
+	for (j=0; j<w; j++)
+		for(i=0; i<h; i++)
+			vec[i*w + j] = img[i][j];
+	
+	
+}
+
+// MakeArray: img is a vector with cols placed one after another
+// (like matlab reshape )
+
+int **MakeArray(int *img, int w, int h)
+{
+	int i,j;
+	int **arr;
+	arr = malloc(h*sizeof(int));
+	for(i=0; i<h; i++)
+		arr[i] = malloc(w*sizeof(int));
+	for (j=0; j<w; j++)
+		for(i=0; i<h; i++)
+			arr[i][j] = img[j*h + i];
+	return arr;
 }
 /// this in turn requires the image to be in a [x y] matrix !
 
@@ -195,7 +222,7 @@ int AdaBoost (StrongClassifier sc) {
 			
 			for(i=0; i<img_count; i++)
 				values[i] = ApplyFeature(features[j],x[i]);
-			sort(values,fxIdx);
+			//sort(values,fxIdx);
 			
 			cls[j] = findWeakClassifier(features[j],fxIdx);
 			
@@ -212,41 +239,139 @@ int AdaBoost (StrongClassifier sc) {
 			
 			
 			beta = min_error / (1 - min_error);
-			alfa[t] = log(1/beta);
+//			alfa[t] = log(1/beta);
 			for(i=0; i<img_count; i++)
 			{
 				
-				w[i] = w[i]*pow(beta, 1-abs( labels[i]- ApplyClassifier(cls[min_idx],images[i]) ) );
+//				w[i] = w[i]*pow(beta, 1-abs( labels[i]- ApplyClassifier(cls[min_idx],images[i]) ) );
 			}
 			sc.theta += 0.5 * alfa[t];
 			/// proceed to the next round
 			
 		}
 }
-
+ int ApplyClassifier(WeakClassifier cls, int *img)
+ {
+ 	double wynik = ApplyFeature(cls.f,img);
+ 	
+ 	if (cls.parity == 1)
+ 	{
+ 		if(wynik < cls.theta)
+ 		{
+ 	//		printf("accepted!\n");
+ 			return 1;
+ 		} else 
+ 		{
+ 			//printf("dropped!\n");
+ 			return 0;
+ 		}
+ 	}
+ 		else
+ 		{
+ 			if(-1*wynik > -1*cls.theta)
+ 			{
+ 			//	printf("accepted!\n");
+ 				return 1;
+ 			} else {
+ 				//printf("dropped!\n");
+ 				return 0;
+ 			}
+ 		}	
+ } 
  /// The detector, input: img as a 25*25 vector
  int ApplyStrongClassifier ( StrongClassifier sc, int *img ) {
-
+	int i,j,clsf;
+	double sum=0.0;
  	double th=0;
- 
- 	for (i=0; i<sc.cls_count; i++)
- 		th+=sc.cls[t].alpha * ApplyClassifier(sc.cls[t], img);
- 
- 	return (th<sc.theta)?-1:1;
+ 	int stages[] ={1,7};
+ 	clsf = 0;
+ 	for (j=0; j<2; j++)
+ 	{ 
+	 	for (i=0; i<stages[j]; i++)
+	 	{
+	 		th+=sc.cls[clsf+i].alpha * ApplyClassifier(sc.cls[clsf+i], img);
+	 		sum+=sc.cls[clsf+i].alpha;
+	 	}
+	 	clsf+=stages[j];
+	 	if(th < 0.5*sum) return 0;
+ 	}
+ 	return 1;
+ 	//return (th<sc.theta)?0:1;
  }
  
-void Detect (int *img) {
+int Detect (int *img) {
 
 //	int th;
-	StrongClassifier *sc;
+	
 	int notFace = 0;
+	int T=1;
+	int t=0;
 	
  	for (t=0; t<T && notFace==0; t++)
- 	
- 		if(!ApplyStrongClassifier(sc[t],img))
+ 	{
+ 	//	printf("round %d, strong classifier has %d features!\n",t,sc.cls_count);
+ 		if(!ApplyStrongClassifier(sc,img))
 			notFace = 1;
-
- 
+ 	}
+ 		
  	//draw the box
- //	if(!notFace) // draw it	 
+ 	if(!notFace)
+ 	{
+ 	//	printf("window accepted!"); 
+ 		return 1;
+ 	}
+ 		else return 0;	 
+}
+
+ int detect_ada( unsigned char *pixbuf,int width, int height,
+ 				int rowstride, int n_channels) {
+	
+	int **iimage;
+	int **img;
+	int **arr;
+	int *vec;
+	int i,j;
+	int res;
+	vec = malloc(625*sizeof(int));
+	iimage = malloc(25*sizeof(int));
+	for(i=0; i<25; i++)
+		iimage[i] = malloc(25*sizeof(int));
+
+	img = malloc(25*sizeof(int));
+	for(i=0; i<25; i++)
+		img[i] = malloc(25*sizeof(int));
+
+	//arr = MakeArray(image,25,25);
+	
+	  //p = pixels + y * rowstride + x * n_channels;
+	  //return;	
+	  unsigned char p;
+	  //printf("it is a %d by %d, %d channel image with a %d stride\n",width,height,n_channels,rowstride);
+	for (i = 0; i < 25; i++) {
+		for (j = 0; j < 25; j++) {
+	
+			img[i][j] = (int)*(pixbuf + i*rowstride + j*n_channels); // really pick only the R channel
+		}
+		
+	}
+	
+
+		
+	IntegralImage(img,iimage,25,25);
+	
+	setSc();
+	
+	//printf("starting detection!\n");
+	MakeVector(iimage,vec,25,25);
+	
+	res = Detect(vec);
+	
+	for(i=0; i<25; i++)
+		free(iimage[i]);
+	for(i=0; i<25; i++)
+		free(img[i]);
+	free(iimage);
+	free(img);
+	free(vec);
+	return res;
 }
