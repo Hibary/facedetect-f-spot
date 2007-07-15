@@ -13,6 +13,7 @@ fspotlibdir = $(libdir)/f-spot
 fspotlib_LTLIBRARIES = libfspot.la
 
 libfspot_la_SOURCES =				\
+	AdaBoost.c				\
 	f-facedetect.c				\
 	f-image-surface.c			\
 	f-image-surface.h			\
