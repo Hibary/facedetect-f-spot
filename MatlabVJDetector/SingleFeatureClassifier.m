@@ -1,4 +1,4 @@
-function sc = SingleFeatureClassifier(f,fxIdx,x,w,y)
+function sc = SingleFeatureClassifier(f,fxIdx,fx,w,y)
         global xN;
         global xNN;
       
@@ -18,18 +18,19 @@ function sc = SingleFeatureClassifier(f,fxIdx,x,w,y)
       % Tn, Sp, Sn
         for i=1:(xN+xNN)
             if(y(fxIdx(i))==1)
-            %    Sp = Sp+w(fxIdx(i));
-                e1 = e1 - w(fxIdx(i));
+%                Sp = Sp+w(fxIdx(i));
+                e1 = e1-w(fxIdx(i));
                 else
-                e1 = e1 + w(fxIdx(i));
-             %   Sn = Sn+w(fxIdx(i));
+                e1 = e1+w(fxIdx(i));
+                %Sn = Sn+w(fxIdx(i));
             end
             % the error for a threshold which splits the range between the
             % current and previous example in the sorted list is e=min(e1,e2)
-%            e1 = (Sp + (Tn - Sn));
+%            e1 = (Sp + (Tn - Sn)); % Sp - suma poz Sn suma net, Tn
 %            e2 = (Sn + (Tp - Sp));
-%            e = min(  e1,e2 );
-            e2 = 1 -e1;          
+%            e = min(  ,  );
+            e2 = 1 -e1;        
+            
             if(e1<min1)
                 min1=e1;
                 min1Idx = i;
@@ -44,14 +45,16 @@ function sc = SingleFeatureClassifier(f,fxIdx,x,w,y)
         if(min1 < min2)
             sc.p = 1;
             minE = min1;
-            sc.theta = ApplyFeature(f,x(fxIdx(min1Idx),:));
+       %     sc.theta = ApplyFeature(f,x(fxIdx(min1Idx),:));
+       sc.theta = fx(min1Idx);
        %     sc.f = fArr(fNcount);
             sc.error = min1;
             mIdx = min1Idx;
         else
             sc.p = -1;
             minE = min2;
-            sc.theta = ApplyFeature(f,x(fxIdx(min2Idx),:));
+%%            sc.theta = ApplyFeature(f,x(fxIdx(min2Idx),:));
+                   sc.theta = fx(min2Idx);
             sc.error = min2;
         
             mIdx = min2Idx;
