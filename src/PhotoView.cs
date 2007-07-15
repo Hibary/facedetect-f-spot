@@ -8,9 +8,8 @@ using System;
 using Mono.Unix;
 using FSpot.Xmp;
 using System.Runtime.InteropServices;
+using System.Collections;
 namespace FSpot {
-
-	
 
 
 public class PhotoView : EventBox {
@@ -426,7 +425,7 @@ public class PhotoView : EventBox {
 		if (query is PhotoQuery) {
 			CommitPendingChanges ();
 		}
-		
+		face_widget.ClearStuff();
 		tag_view.Current = Item.Current;
 		Update ();
 
@@ -475,7 +474,7 @@ public class PhotoView : EventBox {
 		frame.Add (inner_vbox);
 		
 		photo_view = new FSpot.PhotoImageView (query);
-		photo_view.PhotoChanged += HandlePhotoChanged;
+		photo_view.PhotoChanged += HandlePhotoChanged; 
 		photo_view.SelectionChanged += HandleSelectionChanged;
 
 		photo_view_scrolled = new ScrolledWindow (null, null);
@@ -598,16 +597,24 @@ public class PhotoView : EventBox {
 	
 		
 public class FaceBox : Gtk.Frame {
-		GLib.List m_list;
-		// currently selected rect pointer
-		Gdk.Rectangle m_rect;
+		ArrayList m_list;
+		
+		// currently selected face pointer
+		Face m_face;
+		
 		Gtk.SpinButton m_spin;
 		Gtk.Button m_newtag_button;
 		Gtk.Button face_button;
+		Gtk.Entry tag_entry;
 		TagStore tag_store;
-		PhotoImageView View;			
+		PhotoImageView View;
+		FaceStore face_store;
+			
 		// TODO I want here a similar functionality like in the add tag dialog
+			
 		public FaceBox (Gtk.Box tb, PhotoImageView vw) : base() {
+			m_list = new ArrayList();
+			face_store = Core.Database.Faces;
 			View = vw;
 			tag_store = FSpot.Core.Database.Tags;
 			
@@ -621,14 +628,18 @@ public class FaceBox : Gtk.Frame {
 				
 			face_button.Clicked += HandleFaceButtonClicked;
 			
-			
+			tag_entry = new Gtk.Entry ("test");
+			tag_entry.Show();
+				tag_entry.Sensitive = false;
+			tb.PackStart(tag_entry, false, true, 0);
 				
 			m_newtag_button = new  ToolbarButton ();
 			m_newtag_button.Add (new Gtk.Image ("f-spot-new-tag", IconSize.Button));
 			m_newtag_button.Show();
 			m_newtag_button.Sensitive = false;
 			tb.PackStart(m_newtag_button,false,true,0);	
-							
+			
+			m_newtag_button.Clicked += HandleNewTagButtonClicked;				
 						
 			m_spin = new SpinButton(1,1,1);
 			m_spin.Show();
@@ -639,82 +650,84 @@ public class FaceBox : Gtk.Frame {
 				
 			//m.spin.ValueChanged += jesli w bazie, to pokaz jego tag
 			//this.Add(tag_widget);
+			
 		}
 		
-		/*public FaceBox (GLib.List l) : base() {
-			
-			m_list = l;
-			m_spin = new SpinButton(1, l.Count, 1);
-			m_spin.Show();
-			
-			this.Add(m_spin);
-		}*/
 	private void HandleSpinChanged (object sender, EventArgs args) {
 				
 				//Console.WriteLine(m_list.Count);
-				System.Collections.IEnumerator rect_num = m_list.GetEnumerator();
-				for(int i=1; i<m_spin.Value && i<m_list.Count; i++)
-					rect_num.MoveNext();
-				
-				m_rect = (Gdk.Rectangle)rect_num.Current;
+				if((int)m_spin.Value >= m_list.Count)
+					return;
+				m_face = (Face)m_list[(int)m_spin.Value];
+				if(m_face.TagId>0)
+					tag_entry.Text = m_face.Tag.Name;
+				else tag_entry.Text = "";
 				Gdk.Pixmap bitmap = new Gdk.Pixmap (GdkWindow, 
-							    m_rect.Width, 
-							    m_rect.Height, 1);
+							    m_face.Rect.Width, 
+							    m_face.Rect.Height, 1);
+				
+				//Console.WriteLine(m_fac.X + " " + m_rect.Y + " " + m_rect.Width + " " + m_rect.Height);
+	}
+	private void HandleNewTagButtonClicked (object sender, EventArgs args) {
+				
+			 if (tag_entry.Text.Length == 0)
+					return;
 			
-		/*	Context g = CairoUtils.CreateContext (bitmap);
-			g.Operator = Operator.Source;
-			//g.Color = new Color(0,0,0);	
-			g.Source = new SolidPattern (new Cairo.Color (0,0,0,0.5));
+			Photo photo = (Photo)View.Item.Current;
+				
+			Tag t = tag_store.GetTagByName(tag_entry.Text);
+			if(t!=null)
+					Console.WriteLine("tag " + tag_entry.Text + " found, id=" + t.Id);
+				else
+					t=tag_store.CreateTag(tag_store.RootCategory, tag_entry.Text);
+			Face f;
+			if(m_face.Id == 0)
+					f = face_store.Create(m_face.Rect, photo.Id, t.Id);
 			
-			g.Rectangle(m_rect.X, m_rect.Y, m_rect.Width, m_rect.Height);
-			g.Stroke ();
-				((IDisposable)g.Target).Dispose ();
-			((IDisposable)g).Dispose ();				
-			
-			*/
-				Console.WriteLine(m_rect.X + " " + m_rect.Y + " " + m_rect.Width + " " + m_rect.Height);
+			//Console.WriteLine("added rect tagged " +tag_entry.Text + " for photo " +f.Id);
 	}
 			
 	private void HandleFaceButtonClicked (object sender, EventArgs args)
 	{
+				Face[] face_list;
+				GLib.List g_list;
 				Photo photo = (Photo)View.Item.Current;
-				m_list = View.BoxFrame();
+				face_list = face_store.GetFacesByPhotoId(photo.Id);
+				
+				foreach ( Face f in face_list)
+					m_list.Add(f);
+				
+				if(face_list.Length==0)
+				{
+					g_list = View.BoxFrame();
+					System.Collections.IEnumerator rect_num = g_list.GetEnumerator();
+					
+					for(int i=1; i<g_list.Count; i++)
+					{
+						rect_num.MoveNext();
+						m_list.Add(new Face((Gdk.Rectangle)rect_num.Current));
+					}
+				}
+				
 				m_spin.SetRange(1,m_list.Count);
+				m_spin.Spin(SpinType.End, 0.0); // do this so the event gets fired and proper m_rect selected 
 				m_newtag_button.Sensitive = true;
 				m_spin.Sensitive = true;
-				/*
-			
-                        face_widget.Size(50,50);
-                        VBox vbox = (VBox)this.Child;
-                        Frame frame = null;
-                        for(int i=0; i<vbox.Children.Length; i++)
-                        {
-                                if(vbox.Children[i].GetType()==(new EventBox()).GetType()){
-                                                frame = (Frame)((EventBox)vbox.Children[i]).Child;
-                                                break;
-                                }
-                        }
-                        if(frame==null){
-                                Console.WriteLine("oops, no child frame found!");
-                                return;
-                        }
-                        vbox = (VBox) frame.Child;
-                        // vbox.Add(face_widget);
-                        face_widget.Show();
-                        // Gtk.Button sepia_button1;
-						// photo_view.Put(face_widget,0,0);
-						// photo_view.AddFrame();
-			*/
+				tag_entry.Sensitive = true;
 	}
-	
-	/* END */		
-		protected override bool OnExposeEvent (Gdk.EventExpose args) {
-	
-	//		Gdk.Window win = args.Window;
-	//		Gdk.Rectangle area = args.Area;
-	//		win.DrawRectangle (Style.BaseGC (StateType.Normal), true, area);
-			return true;
-		}
+		public void ClearStuff () {
+				tag_entry.Text = "";
+				tag_entry.Sensitive = false;
+				
+				m_spin.SetRange(0,0);
+				m_spin.Sensitive = false;
+				
+				m_newtag_button.Sensitive = false;
+				
+				m_list.Clear();
+				m_face = new Face();
+			}
+		
 
 
 	}

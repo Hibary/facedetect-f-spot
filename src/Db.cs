@@ -166,9 +166,14 @@ public class Db : IDisposable {
 	ExportStore export_store;
  	JobStore job_store;
  	MetaStore meta_store;
+	FaceStore face_store;
 	bool empty;
 	string path;
-
+	
+	public FaceStore Faces {
+		get { return face_store; }
+	}
+	
 	public TagStore Tags {
 		get { return tag_store; }
 	}
@@ -244,7 +249,8 @@ public class Db : IDisposable {
 		FSpot.Database.Updater.Run (this);
 
 		Database.BeginTransaction ();
-
+		
+		face_store = new FaceStore (Database, new_db);
 		tag_store = new TagStore (Database, new_db);
 		roll_store = new RollStore (Database, new_db);
 		export_store = new ExportStore (Database, new_db);
