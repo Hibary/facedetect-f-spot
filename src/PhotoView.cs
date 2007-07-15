@@ -425,7 +425,9 @@ public class PhotoView : EventBox {
 		if (query is PhotoQuery) {
 			CommitPendingChanges ();
 		}
+			
 		face_widget.ClearStuff();
+			
 		tag_view.Current = Item.Current;
 		Update ();
 
@@ -600,12 +602,14 @@ public class FaceBox : Gtk.Frame {
 		ArrayList m_list;
 		
 		// currently selected face pointer
+			
 		Face m_face;
 		
 		Gtk.SpinButton m_spin;
 		Gtk.Button m_newtag_button;
 		Gtk.Button face_button;
 		Gtk.Entry tag_entry;
+		
 		TagStore tag_store;
 		PhotoImageView View;
 		FaceStore face_store;
@@ -613,6 +617,7 @@ public class FaceBox : Gtk.Frame {
 		// TODO I want here a similar functionality like in the add tag dialog
 			
 		public FaceBox (Gtk.Box tb, PhotoImageView vw) : base() {
+			
 			m_list = new ArrayList();
 			face_store = Core.Database.Faces;
 			View = vw;
@@ -655,10 +660,10 @@ public class FaceBox : Gtk.Frame {
 		
 	private void HandleSpinChanged (object sender, EventArgs args) {
 				
-				//Console.WriteLine(m_list.Count);
-				if((int)m_spin.Value >= m_list.Count)
+				Console.WriteLine(m_list.Count);
+				if((int)m_spin.Value > m_list.Count || m_spin.Value<1)
 					return;
-				m_face = (Face)m_list[(int)m_spin.Value];
+				m_face = (Face)m_list[(int)m_spin.Value-1];
 				if(m_face.TagId>0)
 					tag_entry.Text = m_face.Tag.Name;
 				else tag_entry.Text = "";
@@ -668,6 +673,7 @@ public class FaceBox : Gtk.Frame {
 				
 				//Console.WriteLine(m_fac.X + " " + m_rect.Y + " " + m_rect.Width + " " + m_rect.Height);
 	}
+			
 	private void HandleNewTagButtonClicked (object sender, EventArgs args) {
 				
 			 if (tag_entry.Text.Length == 0)
@@ -710,12 +716,19 @@ public class FaceBox : Gtk.Frame {
 				}
 				
 				m_spin.SetRange(1,m_list.Count);
+				m_face = (Face)m_list[0];
+				if(m_face.TagId>0)
+					tag_entry.Text = m_face.Tag.Name;
+				else tag_entry.Text = "";
 				m_spin.Spin(SpinType.End, 0.0); // do this so the event gets fired and proper m_rect selected 
+				
 				m_newtag_button.Sensitive = true;
 				m_spin.Sensitive = true;
 				tag_entry.Sensitive = true;
 	}
+			
 		public void ClearStuff () {
+				Console.WriteLine("clear!");
 				tag_entry.Text = "";
 				tag_entry.Sensitive = false;
 				
