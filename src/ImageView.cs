@@ -86,16 +86,14 @@ public class ImageView : Layout {
 	}
 
 	[DllImport ("libfspot")]
-	static extern IntPtr f_detect([MarshalAsAttribute(UnmanagedType.LPStr)] String cascade, [MarshalAsAttribute(UnmanagedType.LPStr)] String filename, IntPtr image_view);
+	static extern IntPtr f_detect(IntPtr image_view);
 	
-	public void BoxFrame(String cascade, String filename)
+	public GLib.List BoxFrame()
 	{
-		IntPtr raw_ret = f_detect(cascade, filename, Handle);
-		GLib.List list = new GLib.List (raw_ret, typeof (IntPtr), true, true);
-
-		for (int i = 0; i < list.Count; i++) {
 			
-		}
+		IntPtr raw_ret = f_detect(Handle);
+		GLib.List list = new GLib.List (raw_ret, typeof (Gdk.Rectangle), true, true);
+		return list;
 	}
 
 

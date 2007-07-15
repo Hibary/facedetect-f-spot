@@ -15,26 +15,26 @@
 #endif
 
 
-
-
 //int detect_ada(char *pixbuf, int w, int h, int r, int n);
 
 int is_equal(GdkRectangle *r1, GdkRectangle *r2, double xf, double yf) {
 //	printf("%d=%d, %d=%d, %d=%d, %d=%d\n",r1.x, r2.x, r1.y, r2.y, r1.width,r2.width, r1.height, r2.height);
-	double distance = r1->width * 0.2;
-	return r2->x <= r1->x + distance &&
+	int distance = 1; 
+	return 0;
+	//r1->width * 0.01;
+	return r1->x <= r2->x + (int)distance &&
            r2->x >= r1->x - distance &&
-           r2->y <= r1->y + distance &&
+           r1->y <= r2->y + (int)distance &&
            r2->y >= r1->y - distance &&
-           r2->width <= cvRound( r1->width * 1.2 ) &&
-           cvRound( r2->width * 1.2 ) >= r1->width;
+           r2->width <= ( r1->width +5 )&&
+           ( r2->y +5 ) >= r1->x;
 
 }
 
 int is_inner(GdkRectangle r1, GdkRectangle r2, double xf, double yf) {
 	
-	return (r1.x <= r2.x && r1.y <= r2.y &&
-			r1.height > r2.height && r1.width > r2.width) ? 1 : 0;
+	return (r1.x <= r2.x && r1.x+r1.width >= r2.x+r2.width &&
+			r1.height > r2.height && r1.y <= r2.y) ? 1 : 0;
 	
 }
 void draw_box (FImageView *image_view, GdkRegion *other, GdkRectangle r, double xf, double yf) {
@@ -73,9 +73,8 @@ void draw_box (FImageView *image_view, GdkRegion *other, GdkRectangle r, double 
 	    zone.height = y2 - y1;
 		gdk_region_union_with_rect (other, &zone);
 }
-int f_detect (char *cascadeName, 
-		char *fileName,
-		FImageView *image_view)
+
+GList *f_detect (	FImageView *image_view)
 {
 	GdkRectangle zone;
  	cairo_t *ctx;
@@ -91,9 +90,11 @@ int f_detect (char *cascadeName,
 	int pos_count = 0;
 	int neg_count = 0;
 
-	GdkRectangle recs[500];
+	GdkRectangle *recs;
 	GdkPixbuf *pixbuf = image_view_get_pixbuf (IMAGE_VIEW(image_view));
+	GList *list = NULL;
 	
+	recs = malloc(500*sizeof(GdkRectangle));
 	
 	int width = gdk_pixbuf_get_width (pixbuf);
 	int height = gdk_pixbuf_get_height (pixbuf);
@@ -149,30 +150,34 @@ rowstride = gdk_pixbuf_get_rowstride (pixbuf);
 	
 	for(i=0; i<pos_count; i++)
 	{
-	/*	int overlaps = 0;
+		int overlaps = 0;
 		for(j=0; j<pos_count; j++)
 		{
 			if (i==1) continue;
 			
 			
-			 if(is_inner(recs[j],recs[i],xf,yf))
-			{
+			if(is_inner(recs[j],recs[i],xf,yf)) {
 				in++;
 				overlaps++;
 				break;
 			}
-			else if(is_equal(&recs[i],&recs[j],xf,yf))
-			{
+			else if(is_equal(&recs[j],&recs[i],xf,yf)){
+				printf("eq!\n");
+				printf("\t%d %d %d %d\n\t%d %d %d %d\n",recs[j].x, recs[j].y, recs[j].width, recs[j].height, \
+														recs[i].x, recs[i].y, recs[i].width, recs[i].height);	
 				eq++;
 				overlaps++;
-				break;
+				//break;
 			}
-			
 		}
-		if(!overlaps){*/
+		if(!overlaps){
 			draw_box(image_view,other,recs[i],xf,yf);
 			
-		//} else overlapping++;
+	    	//image_coords_to_window(image_view, recs[i].x, recs[i].y, &recs[i].x, &recs[i].y);
+			 GdkRectangle *rect = g_new (GdkRectangle, 1);
+		    *rect = recs[i];
+			list = g_list_append(list,rect);			
+		} else overlapping++;
 	}
 	printf("windows: accepted %d, rejected %d, overlapping %d\n",pos_count,neg_count,overlapping);
 	//printf("eq %d in %d\n",eq,in);
@@ -182,10 +187,9 @@ rowstride = gdk_pixbuf_get_rowstride (pixbuf);
 		cairo_fill (ctx);
 		cairo_destroy (ctx);
 	    gdk_region_destroy (other);
-
+	    	
 	if(!pos_count) return;
 		
-    return 0;
+    return (list);
 }
-
 

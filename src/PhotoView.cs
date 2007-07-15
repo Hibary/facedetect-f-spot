@@ -1,4 +1,6 @@
 using Gdk;
+using Cairo;
+using FSpot.Widgets;
 using GLib;
 using Gtk;
 using GtkSharp;
@@ -8,28 +10,7 @@ using FSpot.Xmp;
 using System.Runtime.InteropServices;
 namespace FSpot {
 
- public class FaceBox : DrawingArea
-        {
-                public FaceBox(){
-
-                }
-
-
-                protected override bool OnExposeEvent (Gdk.EventExpose args){
-
-                        Gdk.Window win = args.Window;
-                Gdk.Rectangle area = args.Area;
-
-                win.DrawRectangle (Style.BaseGC (StateType.Normal), true, area);
-
-                return true;
-                }
-
-                //public void SetSize(int w, int h){
-
-                        //gtk_widget_set_size_request ((DrawingArea)this, w, h);
-        //      }
-        }
+	
 
 
 public class PhotoView : EventBox {
@@ -54,7 +35,7 @@ public class PhotoView : EventBox {
 	
 	Gtk.Button desaturate_button;
 	Gtk.Button sepia_button;
-	Gtk.Button face_button;
+	
 	
 	private OptionMenu constraints_option_menu;
 	private int selection_constraint_ratio_idx;
@@ -63,7 +44,7 @@ public class PhotoView : EventBox {
 	private System.Collections.Hashtable constraint_table = new System.Collections.Hashtable ();
 
 	// Public events.
-
+ 
 	public delegate void PhotoChangedHandler (PhotoView me);
 	public event PhotoChangedHandler PhotoChanged;
 
@@ -301,53 +282,8 @@ public class PhotoView : EventBox {
 		md.Run ();
 		md.Destroy ();
 	}
-	/* Face detection ! */
-	
-	
-	
-	private void HandleFaceButtonClicked (object sender, EventArgs args)
-	{
-		Photo photo = (Photo)View.Item.Current;
-//		Console.WriteLine (photo.DefaultVersionUri);
-//				System.Diagnostics.Process proc = new System.Diagnostics.Process();
-//				proc.EnableRaisingEvents=false; 
-//				proc.StartInfo.FileName = "/usr/local/share/opencv/samples/c/facedetect"; 
-//				proc.StartInfo.Arguments = "--cascade='/usr/local/share/opencv/haarcascades/haarcascade_frontalface_default.xml' " + (photo.DefaultVersionUri.ToString()).Substring(5,photo.DefaultVersionUri.ToString().Length-5);
-//				proc.Start();
-				
-//				proc.WaitForExit();
-				String arg1 ="/usr/local/share/opencv/haarcascades/haarcascade_frontalface_default.xml";
-				String arg2 = (photo.DefaultVersionUri.ToString()).Substring(5,photo.DefaultVersionUri.ToString().Length-5);
-				
-				// Hook to the opencv facedetect example
-				photo_view.BoxFrame(arg1, arg2);
-				
-				/*
-				face_widget = new FaceBox();
-                        face_widget.Size(50,50);
-                        VBox vbox = (VBox)this.Child;
-                        Frame frame = null;
-                        for(int i=0; i<vbox.Children.Length; i++)
-                        {
-                                if(vbox.Children[i].GetType()==(new EventBox()).GetType()){
-                                                frame = (Frame)((EventBox)vbox.Children[i]).Child;
-                                                break;
-                                }
-                        }
-                        if(frame==null){
-                                Console.WriteLine("oops, no child frame found!");
-                                return;
-                        }
-                        vbox = (VBox) frame.Child;
-                        // vbox.Add(face_widget);
-                        face_widget.Show();
-                        // Gtk.Button sepia_button1;
-						// photo_view.PutF(face_widget,0,0);
-						// photo_view.AddFrame();
-			*/
-	}
-	
-	/* END */
+		
+
 	private void HandleSepiaButtonClicked (object sender, EventArgs args)
 	{
 		PhotoQuery pq = query as PhotoQuery;
@@ -514,7 +450,7 @@ public class PhotoView : EventBox {
 	}
 
 	Gtk.Tooltips tips = new Gtk.Tooltips ();
-
+	
 	public PhotoView (IBrowsableCollection query)
 		: base ()
 	{
@@ -609,11 +545,10 @@ public class PhotoView : EventBox {
 		toolbar_hbox.PackStart (autocolor.GetToolButton (false), false, true, 0);
 		
 		/* Face detection ! */
-		face_button = new ToolbarButton ();
-		face_button.Add (new Gtk.Image ("f-spot-sepia", IconSize.Button));
-		toolbar_hbox.PackStart (face_button, false, true, 0);
-		face_button.Clicked += HandleFaceButtonClicked;
 		
+		face_widget = new FaceBox (toolbar_hbox, photo_view);
+		
+		vbox.PackStart ( face_widget, false, true, 0);
 		/* Spacer Label */
 		toolbar_hbox.PackStart (new Label (String.Empty), true, true, 0);
 
@@ -644,8 +579,10 @@ public class PhotoView : EventBox {
 		tips.SetTip (display_previous_button, Catalog.GetString ("Previous photo"), String.Empty);
 		tips.SetTip (desaturate_button, Catalog.GetString ("Convert the photo to black and white"), String.Empty);
 		tips.SetTip (sepia_button, Catalog.GetString ("Convert the photo to sepia tones"), String.Empty);
+
+		Realized += delegate (object o, EventArgs e) {SetColors ();};
 	}
-	
+
 	private void SetColors ()
 	{
 		FSpot.Global.ModifyColors (tag_view);
@@ -658,5 +595,130 @@ public class PhotoView : EventBox {
 	{
 		SetColors ();
 	}
+	
+		
+public class FaceBox : Gtk.Frame {
+		GLib.List m_list;
+		// currently selected rect pointer
+		Gdk.Rectangle m_rect;
+		Gtk.SpinButton m_spin;
+		Gtk.Button m_newtag_button;
+		Gtk.Button face_button;
+		TagStore tag_store;
+		PhotoImageView View;			
+		// TODO I want here a similar functionality like in the add tag dialog
+		public FaceBox (Gtk.Box tb, PhotoImageView vw) : base() {
+			View = vw;
+			tag_store = FSpot.Core.Database.Tags;
+			
+			Gtk.Label lab = new Gtk.Label("Face det:");
+			lab.Show();
+			tb.PackStart(lab, false, true, 0);
+				
+			face_button = new ToolbarButton ();
+			face_button.Add (new Gtk.Image ("f-spot-sepia", IconSize.Button));
+			tb.PackStart (face_button, false, true, 0);
+				
+			face_button.Clicked += HandleFaceButtonClicked;
+			
+			
+				
+			m_newtag_button = new  ToolbarButton ();
+			m_newtag_button.Add (new Gtk.Image ("f-spot-new-tag", IconSize.Button));
+			m_newtag_button.Show();
+			m_newtag_button.Sensitive = false;
+			tb.PackStart(m_newtag_button,false,true,0);	
+							
+						
+			m_spin = new SpinButton(1,1,1);
+			m_spin.Show();
+			m_spin.Sensitive = false;
+			tb.PackStart(m_spin, false, true, 0);
+				
+			m_spin.Changed += HandleSpinChanged;
+				
+			//m.spin.ValueChanged += jesli w bazie, to pokaz jego tag
+			//this.Add(tag_widget);
+		}
+		
+		/*public FaceBox (GLib.List l) : base() {
+			
+			m_list = l;
+			m_spin = new SpinButton(1, l.Count, 1);
+			m_spin.Show();
+			
+			this.Add(m_spin);
+		}*/
+	private void HandleSpinChanged (object sender, EventArgs args) {
+				
+				//Console.WriteLine(m_list.Count);
+				System.Collections.IEnumerator rect_num = m_list.GetEnumerator();
+				for(int i=1; i<m_spin.Value && i<m_list.Count; i++)
+					rect_num.MoveNext();
+				
+				m_rect = (Gdk.Rectangle)rect_num.Current;
+				Gdk.Pixmap bitmap = new Gdk.Pixmap (GdkWindow, 
+							    m_rect.Width, 
+							    m_rect.Height, 1);
+			
+		/*	Context g = CairoUtils.CreateContext (bitmap);
+			g.Operator = Operator.Source;
+			//g.Color = new Color(0,0,0);	
+			g.Source = new SolidPattern (new Cairo.Color (0,0,0,0.5));
+			
+			g.Rectangle(m_rect.X, m_rect.Y, m_rect.Width, m_rect.Height);
+			g.Stroke ();
+				((IDisposable)g.Target).Dispose ();
+			((IDisposable)g).Dispose ();				
+			
+			*/
+				Console.WriteLine(m_rect.X + " " + m_rect.Y + " " + m_rect.Width + " " + m_rect.Height);
+	}
+			
+	private void HandleFaceButtonClicked (object sender, EventArgs args)
+	{
+				Photo photo = (Photo)View.Item.Current;
+				m_list = View.BoxFrame();
+				m_spin.SetRange(1,m_list.Count);
+				m_newtag_button.Sensitive = true;
+				m_spin.Sensitive = true;
+				/*
+			
+                        face_widget.Size(50,50);
+                        VBox vbox = (VBox)this.Child;
+                        Frame frame = null;
+                        for(int i=0; i<vbox.Children.Length; i++)
+                        {
+                                if(vbox.Children[i].GetType()==(new EventBox()).GetType()){
+                                                frame = (Frame)((EventBox)vbox.Children[i]).Child;
+                                                break;
+                                }
+                        }
+                        if(frame==null){
+                                Console.WriteLine("oops, no child frame found!");
+                                return;
+                        }
+                        vbox = (VBox) frame.Child;
+                        // vbox.Add(face_widget);
+                        face_widget.Show();
+                        // Gtk.Button sepia_button1;
+						// photo_view.Put(face_widget,0,0);
+						// photo_view.AddFrame();
+			*/
+	}
+	
+	/* END */		
+		protected override bool OnExposeEvent (Gdk.EventExpose args) {
+	
+	//		Gdk.Window win = args.Window;
+	//		Gdk.Rectangle area = args.Area;
+	//		win.DrawRectangle (Style.BaseGC (StateType.Normal), true, area);
+			return true;
+		}
+
+
+	}
+		
+		
 }
 }

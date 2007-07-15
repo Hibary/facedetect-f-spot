@@ -161,11 +161,11 @@ WeakClassifier findWeakClassifier(int *f, int *fxIdx) {
 }		
 int AddClassifier (StrongClassifier sc, WeakClassifier cls) {
 	
-	if(sc.cls_count >= MAX_CLS_IN_STAGE)
+	if(sc.count >= MAX_CLS_IN_STAGE)
 		return -1;
 	
-	sc.cls[sc.cls_count] = cls;
-	sc.cls_count++;
+	sc.sc[sc.count] = cls;
+	sc.count++;
 	return 0;
 	
 }
@@ -258,11 +258,11 @@ int AdaBoost (StrongClassifier sc) {
  	{
  		if(wynik < cls.theta)
  		{
- 	//		printf("accepted!\n");
+ 		//	printf("accepted!\n");
  			return 1;
  		} else 
  		{
- 			//printf("dropped!\n");
+ 	//		printf("dropped!\n");
  			return 0;
  		}
  	}
@@ -270,31 +270,25 @@ int AdaBoost (StrongClassifier sc) {
  		{
  			if(-1*wynik > -1*cls.theta)
  			{
- 			//	printf("accepted!\n");
+ //				printf("accepted!\n");
  				return 1;
  			} else {
- 				//printf("dropped!\n");
+// 				printf("dropped!\n");
  				return 0;
  			}
  		}	
  } 
  /// The detector, input: img as a 25*25 vector
- int ApplyStrongClassifier ( StrongClassifier sc, int *img ) {
+ int ApplyStrongClassifier ( StrongClassifier strong, int *img ) {
 	int i,j,clsf;
 	double sum=0.0;
  	double th=0;
- 	int stages[] ={1,7};
- 	clsf = 0;
- 	for (j=0; j<2; j++)
- 	{ 
-	 	for (i=0; i<stages[j]; i++)
-	 	{
-	 		th+=sc.cls[clsf+i].alpha * ApplyClassifier(sc.cls[clsf+i], img);
-	 		sum+=sc.cls[clsf+i].alpha;
-	 	}
-	 	clsf+=stages[j];
-	 	if(th < 0.5*sum) return 0;
- 	}
+ 	
+ 	
+ 	for (i=0; i<strong.count; i++)
+	 		th+=strong.sc[i].alpha * ApplyClassifier(strong.sc[i], img);
+	 //printf("klas o feat = %d theta = %f mowi, ze f=%f i H=%d\n",strong.count, strong.theta,th,(th>strong.theta)?1:-1);
+ 	if(th < strong.theta) return -1;
  	return 1;
  	//return (th<sc.theta)?0:1;
  }
@@ -310,7 +304,7 @@ int Detect (int *img) {
  	for (t=0; t<T && notFace==0; t++)
  	{
  	//	printf("round %d, strong classifier has %d features!\n",t,sc.cls_count);
- 		if(!ApplyStrongClassifier(sc,img))
+ 		//if(!ApplyStrongClassifier(sc,img))
 			notFace = 1;
  	}
  		
@@ -323,6 +317,22 @@ int Detect (int *img) {
  		else return 0;	 
 }
 
+int RunCascade (int *img) {
+	int i=0;
+	int T=0;
+	int clsf = 0;
+	
+	for(i=0; i<num_stages; i++) {
+		
+		//T = stages[i];
+		if ( ApplyStrongClassifier(st[i],img) == -1)
+		{
+//			printf("rej by stage %d\n",i);
+			return 0;
+		}
+	}
+	return 1;
+}
  int detect_ada( unsigned char *pixbuf,int width, int height,
  				int rowstride, int n_channels) {
 	
@@ -364,7 +374,7 @@ int Detect (int *img) {
 	//printf("starting detection!\n");
 	MakeVector(iimage,vec,25,25);
 	
-	res = Detect(vec);
+	res = RunCascade(vec);
 	
 	for(i=0; i<25; i++)
 		free(iimage[i]);
