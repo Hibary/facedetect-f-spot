@@ -614,7 +614,7 @@ public class FaceBox : Gtk.Frame {
 		PhotoImageView View;
 		FaceStore face_store;
 			
-		// TODO I want here a similar functionality like in the add tag dialog
+		// FIXME clicking the spinbutton too fast seems to switch the view to browse
 			
 		public FaceBox (Gtk.Box tb, PhotoImageView vw) : base() {
 			
@@ -695,9 +695,12 @@ public class FaceBox : Gtk.Frame {
 			
 	private void HandleFaceButtonClicked (object sender, EventArgs args)
 	{
+				if(m_list.Count>0) return; // we already did detection for that image
+				
 				Face[] face_list;
 				GLib.List g_list;
 				Photo photo = (Photo)View.Item.Current;
+				
 				face_list = face_store.GetFacesByPhotoId(photo.Id);
 				
 				foreach ( Face f in face_list)
