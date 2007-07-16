@@ -75,6 +75,7 @@ F_SPOT_CSDISTFILES =				\
 	$(srcdir)/Extensions/ITool.cs	\
 	$(srcdir)/Extensions/MenuNode.cs	\
 	$(srcdir)/Extensions/ToolMenuItemNode.cs	\
+	$(srcdir)/FaceStore.cs			\
 	$(srcdir)/Fader.cs			\
 	$(srcdir)/FlickrExport.cs		\
 	$(srcdir)/FlickrRemote.cs		\
