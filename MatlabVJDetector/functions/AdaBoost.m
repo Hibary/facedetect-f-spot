@@ -10,6 +10,14 @@
 %   |   date  : Jul 16th 2007                                                               |
 %   |                                                                                       |
 %   +---------------------------------------------------------------------------------------+
+%   |                          | |   ____ (_)                      | |              | |     |
+%   |     __ _ _ __   __ _ _ __| |_ / __ \ _  __ _ _ __   __ _ _ __| |_   _ __   ___| |_    |
+%   |    / _` | '_ \ / _` | '__| __/ / _` | |/ _` | '_ \ / _` | '__| __| | '_ \ / _ \ __|   |
+%   |   | (_| | |_) | (_| | |  | || | (_| | | (_| | |_) | (_| | |  | |_ _| | | |  __/ |_    |
+%   |    \__,_| .__/ \__,_|_|   \__\ \__,_|_|\__,_| .__/ \__,_|_|   \__(_)_| |_|\___|\__|   |
+%   |         | |                   \____/        | |                                       |
+%   |         |_|                                 |_|                                       |
+%   +---------------------------------------------------------------------------------------+
 %   |                                                                                       |
 %   |   Synopsis:                                                                           |
 %   |   ----------                                                                          |
@@ -31,7 +39,7 @@
 	
 	
 	% AdaBoost
-	% function [selClas, theta, d, fn,fp] = AdaBoost ( x, xN, xNN, y, n )
+	% function [selClas, theta, d, fn,fp, fpos] = AdaBoost ( x, xN, xNN, y, n )
 	%
 	%	INPUT :
 	%				x	- array of [positive; negative] examples, one in each row
@@ -46,6 +54,7 @@
 	%				d		- detection rate as returned by TestStage
 	%				fn		- number of false negatives as returned by TestStage
 	%				fp		- number of false positives as returned by TestStage
+	%				fpos	- return the false positives themselves, to feed to next stages 
 	
 	function [selClas, theta, d, fn,fp] = AdaBoost ( x, xN, xNN, y, T )
 	global f;
@@ -209,10 +218,11 @@
 	[err fn fp d] = TestStage(selClas,theta);
 	fprintf('\terror %d%%\t fN %d%%\t fP %d%%\t D %d%%\n',err*100,fn*100,fp*100,d*100);
 	
-	nonfaces = [];
+	fpos = [];
 	
 	for i=xN+1:xN+xNN
 	    if(RunStage(x(i,:),selClas,theta)==1)
-	        nonfaces = [nonfaces ; x(i,:) ];
+	        fpos = [fpos ; x(i,:) ];
 	    end
 	end
+	

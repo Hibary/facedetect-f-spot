@@ -10,6 +10,14 @@
 %   |   date  : Jul 16th 2007                                                               |
 %   |                                                                                       |
 %   +---------------------------------------------------------------------------------------+
+%   |                          | |   ____ (_)                      | |              | |     |
+%   |     __ _ _ __   __ _ _ __| |_ / __ \ _  __ _ _ __   __ _ _ __| |_   _ __   ___| |_    |
+%   |    / _` | '_ \ / _` | '__| __/ / _` | |/ _` | '_ \ / _` | '__| __| | '_ \ / _ \ __|   |
+%   |   | (_| | |_) | (_| | |  | || | (_| | | (_| | |_) | (_| | |  | |_ _| | | |  __/ |_    |
+%   |    \__,_| .__/ \__,_|_|   \__\ \__,_|_|\__,_| .__/ \__,_|_|   \__(_)_| |_|\___|\__|   |
+%   |         | |                   \____/        | |                                       |
+%   |         |_|                                 |_|                                       |
+%   +---------------------------------------------------------------------------------------+
 %   |                                                                                       |
 %   |   Synopsis:                                                                           |
 %   |   ----------                                                                          |
@@ -165,9 +173,7 @@
 %			and Fp - number of false positives
 %			of the returned stage
 
-		    [scs theta D Fi Fp] = AdaBoost  (x, xN, xNN, y, n);
-			
-		
+		    [scs theta D Fi Fp fpos] = AdaBoost  (x, xN, xNN, y, n);
 		
 			%    [err fn fp D] = TestStage( scs, theta);
 			%    return
@@ -184,17 +190,21 @@
 		    
 		    stages = [stages size(scs,2)];
 		    n=n+1;
-		    fprintf('stage %d completed with Fi = %d%% and %d false positives', n-1,Fi*100,size(nonfaces,1) );
+
 		end
 %		End of the stage training loop
+		fprintf('stage %d completed with Fi = %d%% and %d false positives', n-1,Fi*100,size(nonfaces,1) );
 
+%		Add the false positives to the negative example set !
+% TODO:	Check if this is done right !
+% TODO: Should we add just the false-positives or both fp & the original negative examples
+
+		nonfaces = [nonfaces; fpos];
+		xNN = size(nonfaces,2);
+		x = [faces(1:xN,:); nonfaces(1:xNN,:)];
+		
 	end
 % 	End of the cascade training loop
-	
-	ttoc=toc
-	%loc= 'C:\Documents and Settings\BAGHIYE\Desktop\Special topics Vision FALL 04\PROJECT\' ;
-	%save([loc 'TrainResults.mat'], 'fNbestArray','thetaBestArray','pBestArray','alpha_t_Array','T');
-	
+		
 %	Save results
-
 	save('mojeKaskada2k.mat','sc','stages','stage_theta');
