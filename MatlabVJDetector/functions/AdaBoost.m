@@ -31,14 +31,14 @@
 	
 	
 	% AdaBoost
-	% function [selClas, theta, d, fn,fp] = AdaBoost ( x, xN, xNN, y, T )
+	% function [selClas, theta, d, fn,fp] = AdaBoost ( x, xN, xNN, y, n )
 	%
 	%	INPUT :
 	%				x	- array of [positive; negative] examples, one in each row
 	%				xN	- number of positive examples
 	%				xNN	- number of negative examples
 	%				y	- labels
-	%				T	- maximum number of features in the classifier
+	%				n	- maximum number of features in the classifier
 	%
 	%	OUTPUT :
 	%				selClas	- classifier array (stage of a cascade) 
@@ -73,7 +73,7 @@
 	
 % 	Initialize the structure that will hold the classifiers
 
-	for i = 1:fN
+	for i = 1:n
 	    sc(i) = struct('f',0, 'theta', 0,'p', 0,'alpha',0, 'error',0, 'fp',0, 'fn',0, 'h',[], 'idx', 0);
 	end
 	
@@ -84,8 +84,12 @@
 %	this has to be changed wrt to Table 1., p142 of [1]
 %	(I think)
 
-	for t=1:T
-		ok =0;	
+	for t=1:n
+	
+%		If detection rate over 0.99 is achieved - stop.
+		if(D > 0.99)  break; end;
+		ok =0;
+			
 %	 2. For each feature train a classifier h_j which is restricted to using a single feature
 %	 The error is evaluated with respect to wt, ej = S_i w_i |h_j(x_i) - y_i|.
 
@@ -95,8 +99,7 @@
 		wsum=sum(w);
 		w=w/wsum;
 
-%	If detection rate over 0.99 is achieved - stop.
-	if(D > 0.99)  break; end;
+
         
 		disp('next round!!');
 		pause(1);

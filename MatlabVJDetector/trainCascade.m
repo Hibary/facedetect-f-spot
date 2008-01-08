@@ -113,28 +113,33 @@
 	
 	
 	Fi 	= 1.0;
-	Fi1 = 1.0;
-	ff 	= 0.3;
+	Fi1 = 1.0;   % a helper var to keep the previous Fi value
+	Di	= 1.0;
+	i	= 0;
+	ff 	= 0.001; % the maximum acceptable false positive rate per layer
+	d	= 0.999; % the minimum acceptable detection rate per layer
 	T	= -4;
 	n	= 1;
 	Fp	= 1.0;
+	
 	Ftarget = 0.00001;
 	stages 	 = [];
 	selClass = zeros(1,T);
 	globalFp = 1.0;
 	
+	
 %	Cascade training loop 
 %	proceed until we reach the target false neg or false pos goal
 %	or if we run out of example images
 
-	while Fi > 0.01 || Fp > 0.01
-	
+	while Fi > Ftarget
+		i = i+1;
 	    fprintf('next stage!\n');
 	    
 	    xNN = size(nonfaces,1);
 
 %		Stop if we ran out of negative examples
-	    if(xNN==0) break; end
+%		if(xNN==0) break; end
 
 %		Fix the labels
 	    y=[ones(1,xN) -1*ones(1,xNN)];
@@ -152,16 +157,16 @@
 %		Stage training loop
 	    while Fi > ff *Fi1
 		
-		    
-		    T=T+5;
+		    n = n+1;
+%			T=T+5;
 
 % 			Start Adaboost
 %			set Fi - number of false negatives
 %			and Fp - number of false positives
 %			of the returned stage
 
-		    [scs theta D Fi Fp] = AdaBoost  (x, xN, xNN, y, T);
-		
+		    [scs theta D Fi Fp] = AdaBoost  (x, xN, xNN, y, n);
+			
 		
 		
 			%    [err fn fp D] = TestStage( scs, theta);
