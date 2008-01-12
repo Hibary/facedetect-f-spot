@@ -52,7 +52,7 @@
 	addpath([pwd '/data']);
 	addpath([pwd '/functions']);
 	
-	load('moje.mat');
+    load('moje.mat');
 	load('features.mat');
 	disp('data loaded!');
 	

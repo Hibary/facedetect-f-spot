@@ -56,7 +56,7 @@
 	%				fp		- number of false positives as returned by TestStage
 	%				fpos	- return the false positives themselves, to feed to next stages 
 	
-	function [selClas, theta, d, fn,fp] = AdaBoost ( x, xN, xNN, y, T )
+	function [selClas, theta, d, fn,fp,fpos] = AdaBoost ( x, xN, xNN, y, T )
 	global f;
 	global fN;
 	global fArr;
@@ -82,7 +82,7 @@
 	
 % 	Initialize the structure that will hold the classifiers
 
-	for i = 1:n
+	for i = 1:T
 	    sc(i) = struct('f',0, 'theta', 0,'p', 0,'alpha',0, 'error',0, 'fp',0, 'fn',0, 'h',[], 'idx', 0);
 	end
 	
@@ -93,10 +93,10 @@
 %	this has to be changed wrt to Table 1., p142 of [1]
 %	(I think)
 
-	for t=1:n
+	for t=1:T
 	
 %		If detection rate over 0.99 is achieved - stop.
-		if(D > 0.99)  break; end;
+%		if(D > 0.99)  break; end;
 		ok =0;
 			
 %	 2. For each feature train a classifier h_j which is restricted to using a single feature
@@ -111,7 +111,7 @@
 
         
 		disp('next round!!');
-		pause(1);
+%		pause(1);
 		
 		fIdx =0;
 		hT = 0;
@@ -159,7 +159,8 @@
 %	 	End iterating through features.
 
 %		For each classifier, calculate it's error
-		fn=0;
+
+        fn=0;
 	    fp=0;
 		h = zeros(1,xN+xNN);
 	    used(selClas(t).idx)=1;
@@ -176,9 +177,9 @@
 	
 	
 		theta = theta + 0.5*selClas(t).alpha;
-		[err fn fp D] = TestStage(selClas,theta);
+	%	[err fn fp D] = TestStage(selClas,theta);
 	%   [fp 1/(5*T)]
-		if(fp < 1/(5*T)) break;   end
+	%	if(fp < 1/(5*T)) break;   end
 		
 	end
 	% End of the for t=1:T outer loop
@@ -187,7 +188,7 @@
 	theta
 %	Find the stage's false positives :
 	
-	if(D<0.98 && fp<1/(T))
+%	if(D<0.98 && fp<1/(T))
 		count = size(selClas,2);
 		fx = zeros(1,size(valSet,1));
 	
@@ -207,7 +208,7 @@
 		[fx fxIdx] = sort(fx);
 		theta = fx(1);
 	 	theta
-	end 
+%	end 
 % 	End of threshold adjust - only when D<smth
 
 	%stepp = 0.1*theta;
@@ -217,7 +218,8 @@
 	
 	[err fn fp d] = TestStage(selClas,theta);
 	fprintf('\terror %d%%\t fN %d%%\t fP %d%%\t D %d%%\n',err*100,fn*100,fp*100,d*100);
-	
+
+%   Update the negative example set with false positives
 	fpos = [];
 	
 	for i=xN+1:xN+xNN
