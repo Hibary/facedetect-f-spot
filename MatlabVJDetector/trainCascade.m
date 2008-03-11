@@ -52,8 +52,13 @@
 	addpath([pwd '/data']);
 	addpath([pwd '/functions']);
 	
-    load('moje.mat');
+	
+    load('cumimages-28-01-08.mat');
+ %   load('moje.mat');
+ %   load('images.mat');
 	load('features.mat');
+%	load('fff.mat');
+%	f = fff;%
 	disp('data loaded!');
 	
 	global valSet;
@@ -69,24 +74,31 @@
 	global fNMax;
 	global ktory;
 	global prevFeats;
-	
+    global used;
 	ktory = 1;
 	prevFeats = zeros(0);
 		
 	% Use the whole training set, or just parts of it
-	
-	valSetPos 		= size(faces,1);
-	valSetNeg 		= size(nonfaces,1);
-	random_faces 	= faces;%([int16(unifrnd(1,size(faces,1),1,valSetPos))],:); %faces; %
-	random_nonfaces = nonfaces;%([int16(unifrnd(1,size(nonfaces,1),1,valSetNeg))],:); %nonfaces; %
-	valSet  		= [random_faces ; random_nonfaces];
+   faces = cumfaces;
+   nonfaces = cumnonfaces;
+    random_faces 	= faces(1500:1800,:);%;[int16(unifrnd(1,size(faces,1),1,valSetPos))],:); %faces; %
+	random_nonfaces = nonfaces(3500:3800,:);%([int16(unifrnd(1,size(nonfaces,1),1,valSetNeg))],:); %nonfaces; %
+%    faces 			= faces(1:1500,:);
+%	nonfaces		= nonfaces(1:3500,:);
+	xN              = size(faces,1);
+	xNN             = size(nonfaces,1);
+
+
+    
+    valSetPos 		= size(random_faces,1);
+	valSetNeg 		= size(random_nonfaces,1);
+    
+    valSet  		= [random_faces ; random_nonfaces];
 	valSetY 		= [ones(1,valSetPos) -1*ones(1,valSetNeg) ];
 	
 %	Weights for face/nonface examples
-	xN  = valSetPos
-	xNN = valSetNeg
-	
-	
+
+  	%w=[wface*ones(1,xN) wNoface*ones(1,xNN)];
 	
 	fArr = 1:size(f,2);
 	fN	 = size(fArr,2);
@@ -97,14 +109,14 @@
 
 
 % 	Init the variables
-	t		= 0;
-	T		= 70; % max number of rounds
-	fNMax 	= 5000;
-	pArray 	= zeros(1,T);
-	okCount = zeros(1,T);
+	t				= 0;
+	T				= 70; 	% max number of rounds
+	fNMax 			= 5000;
+	pArray 			= zeros(1,T);
+	okCount 		= zeros(1,T);
 	falsePos 		= zeros(1,T);
 	falseNeg 		= zeros(1,T);
-	stage_theta 	= zeros(1,100);
+	stage_alpha 	= zeros(1,100);
 	mminErrorArray	= ones(1,T);
 	fNbestArray 	= zeros(1,T);
 	alphaArray		= zeros(1,T);
@@ -113,25 +125,25 @@
 		
 	
 	for i=1:fNMax
-	    sc(i) = struct('f',0, 'theta', 0,'p', 0,'alpha',0, 'error',0, 'fp',0, 'fn',0, 'h',[], 'idx', 0);
+	    sc(i) = struct('f',0, 'theta', 0,'p', 0,'alpha',0, 'error',0, 'fp',0, 'fn',0, 'h',[], 'idx', 0, 'beta', 0);
 	end
 	
 	nonfacesOrig = nonfaces;
-	nonfaces = nonfaces(1:xNN,:);
+	nonfaces 	 = nonfaces(1:xNN,:);
 	
 	
 	Fi 	= 1.0;
-	Fi1 = 1.0;   % a helper var to keep the previous Fi value
+	Fi1 = 1.0;   			% a helper var to keep the previous Fi value
 	Di	= 1.0;
 	i	= 0;
-	ff 	= 0.001; % the maximum acceptable false positive rate per layer
-	d	= 0.999; % the minimum acceptable detection rate per layer
+	ff 	= 0.01; 			% the maximum acceptable false positive rate per layer
+	d	= 0.99; 			% the minimum acceptable detection rate per layer
 	T	= -4;
-	n	= 1;
+	n	= 0;
 	Fp	= 1.0;
 	
 	Ftarget = 0.00001;
-	stages 	 = [];
+	stages 	 = [];			% holds the number of classifiers in individual stages of the cascade
 	selClass = zeros(1,T);
 	globalFp = 1.0;
 	
@@ -139,42 +151,55 @@
 %	Cascade training loop 
 %	proceed until we reach the target false neg or false pos goal
 %	or if we run out of example images
-
-	while Fi > Ftarget
+	cache(1:100)=0;
+%	cache(1) = 128; %63; %88;
+%    cache(2) = 508;
+	stage_counts = [2 5 10 20 20];
+%	while Fi > Ftarget
+	used = zeros(1,size(f,2));
+    while i<5
 		i = i+1;
 	    fprintf('next stage!\n');
 	    
-	    xNN = size(nonfaces,1);
+	    xNN = size(nonfaces,1)
 
 %		Stop if we ran out of negative examples
-%		if(xNN==0) break; end
+		if(xNN==0) break; end
 
 %		Fix the labels
 	    y=[ones(1,xN) -1*ones(1,xNN)];
-	    used = zeros(1,fN);
+
 	    
 %		Initialize the weights as 1/2m and 1/2l
 %    	w=[wface*ones(1,xN) wNoface*ones(1,xNN)];
 %		X is a matrix with each row being one of the test images
 	    x = [faces(1:xN,:); nonfaces(1:xNN,:)];    
 	
-	    Fi = Fi1;
+	    Fi1 = Fi;
 	    st=0;
+        n=stage_counts(i)-1;    
 	    fprintf(' false positives promoted = %d \n' ,xNN);
 
 %		Stage training loop
-	    while Fi > ff *Fi1
-		
-		    n = n+1;
-%			T=T+5;
+%	    while Fi > ff *Fi1 && n <= stage_counts(i)
+        while n == stage_counts(i)-1
+		    n = n+1
 
 % 			Start Adaboost
 %			set Fi - number of false negatives
 %			and Fp - number of false positives
 %			of the returned stage
 
-		    [scs theta D Fi Fp fpos] = AdaBoost  (x, xN, xNN, y, n);
-		
+%			Use the results of previous iteration of the inner loop - don't calculate from scratch.
+						
+		%	if(exist('sums'))
+		%		for i = 1:1; %sums:size(sc,2)
+		%			cache = [cache sc(i).f];
+		%		end
+		%	end
+				  
+		    [scs alpha D Fi Fp fpos] = AdaBoost  (x, xN, xNN, y, n, cache);
+            
 			%    [err fn fp D] = TestStage( scs, theta);
 			%    return
 		
@@ -182,29 +207,58 @@
 			%      Fi = Fi/size(valSet,1);
 		    
 		    sums = sum(stages);
-		    stage_theta(n) = theta;
-		    
-		    for i=1:size(scs,2)
-		        sc(sums+i) = scs(i);
+		    stage_alpha(i) = alpha;
+
+		 
+		    for z=1:size(scs,2)
+		        sc(sums+z) = scs(z);
 		    end
-		    
+
+% TODO:		Decrease threshold for the i-th classifier until the current cascaded
+%			classifier has a detection rate of at least d * D_(i-1)
+
+			[err Fi Fp D new_thetas ss] = TestStage(scs, alpha);
+
+%           Adjust the confidence level of the classifier
+
+            fprintf('error on validation set: %2.2f, Fn=%2.2f Fp=%2.2f\n', err,Fi,Fp);
+		    fprintf('adjusting alpha........................\n');
+          %  1/xNN
+		    while (D < 0.97)%d * Di) 
+		    	alpha = alpha - 0.1;
+			    [err Fi Fp D new_thetas,ss] = TestStage(scs, alpha);      
+            end
+            fprintf('error on validation set: %2.2f, Fn=%2.2f Fp=%2.2f\n', err,Fi,Fp);
+		    stage_alpha(i) = alpha;
 		    stages = [stages size(scs,2)];
-		    n=n+1;
+%		    n=n+1;
 
 		end
 %		End of the stage training loop
-		fprintf('stage %d completed with Fi = %d%% and %d false positives', n-1,Fi*100,size(nonfaces,1) );
+
 
 %		Add the false positives to the negative example set !
+
 % TODO:	Check if this is done right !
 % TODO: Should we add just the false-positives or both fp & the original negative examples
 
-		nonfaces = [nonfaces; fpos];
-		xNN = size(nonfaces,2);
+        fprintf('updating example sets...\n');
+      	fpos=[];
+        wneg = [];
+    	for z=xN+1:xN+xNN
+            if(RunStage(x(z,:),scs,stage_alpha(i))==1)
+                fpos = [fpos ; x(z,:) ];
+%                wneg = [wneg w(z)];
+            end
+        end
+       
+	fprintf('stage %d completed with Fi = %d%% and %d false positives (%2.2f%%)\n', i,Fi*100,size(fpos,1),Fp );
+		nonfaces = fpos;
+		xNN = size(nonfaces,1);
 		x = [faces(1:xN,:); nonfaces(1:xNN,:)];
-		
+ %    	w = [w(1:xN) wneg];
 	end
 % 	End of the cascade training loop
 		
 %	Save results
-	save('mojeKaskada2k.mat','sc','stages','stage_theta');
+	save('mojeKaskada2k.mat','sc','stages','stage_alpha');
